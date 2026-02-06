@@ -51,11 +51,15 @@ OBJ       := $(patsubst %.asm, $(BUILD)/%.o, $(ALL_ASM_FILES))
 ARCHIVE   := $(BUILD)/libcrypto.a
 TEST_SRCS := $(wildcard tests/*.c)
 TEST_OBJS := $(patsubst tests/%.c, build/tests/%.o, $(TEST_SRCS))
+BMRK_SRCS := $(wildcard benchmarks/*.c)
+BMRK_OBJS := $(patsubst benchmarks/%.c, build/benchmarks/%.o, $(BMRK_SRCS))
 LIBKRITIC := tests/KritiC/build/libkritic.a
 ifeq ($(OS),Windows_NT)
 	TESTRUNNER := $(BUILD)/testrunner.exe
+	BENCHRUNNER := $(BUILD)/benchrunner.exe
 else
 	TESTRUNNER := $(BUILD)/testrunner
+	BENCHRUNNER := $(BUILD)/benchrunner.exe
 endif
 
 
@@ -63,7 +67,7 @@ endif
 all: banner $(ARCHIVE)
 
 banner:
-	@printf "===== [     Build libcrypto.     ] =====\n"
+	@printf "===== [      Build libcrypto       ] =====\n"
 	@printf " $(CYAN)$(BOLD)Building$(RESET)   asm-crypto for $(FORMAT) with algos/groups: $(ALGOS)\n"
 
 # === Assemble === #
@@ -86,16 +90,31 @@ $(ARCHIVE): $(OBJ)
 	@printf " $(GREEN)$(BOLD)Archived$(RESET)   at: $(ARCHIVE)\n"
 
 build/tests/%.o: tests/%.c
-	@printf "===== [  Build libcrypto tests.  ] =====\n"
+	@if [ -z "$(TEST_BANNER_PRINTED)" ]; then \
+		printf "===== [   Build libcrypto tests    ] =====\n"; \
+	fi
+	@$(eval TEST_BANNER_PRINTED := 1)
 	@if [ ! -d "build/tests" ]; then \
 		mkdir -p "build/tests"; \
 	fi
 	@printf " $(GREEN)$(BOLD)Compiling$(RESET) $<\n"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
+build/benchmarks/%.o: benchmarks/%.c
+	@if [ -z "$(BENCH_BANNER_PRINTED)" ]; then \
+		printf "===== [ Build libcrypto benchmarks ] =====\n"; \
+	fi
+	@$(eval BENCH_BANNER_PRINTED := 1)
+	@if [ ! -d "build/benchmarks" ]; then \
+		mkdir -p "build/benchmarks"; \
+	fi
+	@printf " $(GREEN)$(BOLD)Compiling$(RESET) $<\n"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+
 # Rule: test depends on all test object files and the archive
 $(LIBKRITIC):
-	@printf "===== [ KritiC testing framework ] =====\n"
+	@printf "===== [  KritiC testing framework  ] =====\n"
 	@if [ -d "tests/KritiC" ]; then \
 		(cd tests/KritiC && make --no-print-directory static); \
 	else \
@@ -108,6 +127,13 @@ test: $(ARCHIVE) $(TEST_OBJS) $(LIBKRITIC)
 	@$(CC) -O3 $(TEST_OBJS) $(LIBKRITIC) $(ARCHIVE) -o $(TESTRUNNER)
 	@printf " $(CYAN)$(BOLD)Running$(RESET)   $(TESTRUNNER)\n"
 	@$(TESTRUNNER)
+
+benchmark: $(ARCHIVE) $(BMRK_OBJS)
+	@printf "===== [    Linking benchmarks    ] =====\n"
+	@printf " $(GREEN)$(BOLD)Linking$(RESET)   $(BENCHRUNNER)\n"
+	@$(CC) -O3 $(BMRK_OBJS) $(ARCHIVE) -o $(BENCHRUNNER) -lcrypto -lsodium -lbearssl
+	@printf " $(CYAN)$(BOLD)Running$(RESET)   $(BENCHRUNNER)\n"
+	@$(BENCHRUNNER)
 
 # === Clean === #
 clean:
