@@ -14,8 +14,8 @@
 #include <bearssl.h>
 
 
-#define BUFFER_SIZE 13000
-#define ITERATIONS 100000
+#define BUFFER_SIZE 65
+#define ITERATIONS 1000000
 
 
 static inline double now_sec(void) {
